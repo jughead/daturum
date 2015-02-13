@@ -1,0 +1,7 @@
+#!/bin/bash
+sudo -u postgres psql postgres -c "DROP DATABASE agiki_development"
+sudo -u postgres psql postgres -c "CREATE DATABASE agiki_development"
+sudo -u postgres psql agiki_development < $1
+rake tmp:clear
+sudo service memcached stop
+sudo service memcached start

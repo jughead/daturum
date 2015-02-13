@@ -1,0 +1,49 @@
+#!/bin/bash
+filename=$3$(date +%y%m%d).sql
+if [ ! -f "../$filename" ]; then
+  ssh $1 "pg_dump $2 > $filename"
+  scp $1:$filename ../$filename
+fi
+
+OIFS=$IFS
+IFS="@"
+read -ra user <<< "$1"
+IFS=$OIFS
+user=${user[0]}
+echo $user
+pattern=s/${user}_production/agiki/g
+sed -i -e $pattern ../$filename
+pattern=s/$user/agiki/g
+sed -i -e $pattern ../$filename
+
+rm -rf public/assets > /dev/null 2>&1
+rm -rf public/attachments > /dev/null 2>&1
+rm -rf public/files > /dev/null 2>&1
+rm -rf public/pages > /dev/null 2>&1
+rm -rf public/stylesheets > /dev/null 2>&1
+rm -rf public/uploads > /dev/null 2>&1
+path=www/current
+if [ "$4" != "" ]; then
+  path=$4
+fi
+function copy_dir_to_public {
+  rsync -ravhq --progress -e ssh --include '*/' --include='*.png|*.jpg|*.gif' --exclude='*' $1 public
+}
+echo "Copying assets"
+scp -r $1:$path/public/assets public
+echo "Copying attachments"
+copy_dir_to_public $1:$path/public/attachments
+echo "Copying files"
+copy_dir_to_public $1:$path/public/files
+echo "Copying pages"
+copy_dir_to_public $1:$path/public/pages
+echo "Copying stylesheets"
+scp -r $1:$path/public/stylesheets public
+echo "Copying uploads"
+copy_dir_to_public $1:$path/public/uploads
+sudo -u postgres psql postgres -c "DROP DATABASE agiki_development"
+sudo -u postgres psql postgres -c "CREATE DATABASE agiki_development"
+sudo -u postgres psql agiki_development < ../$filename
+rake tmp:clear
+sudo service memcached restart
+rake db:migrate

@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo -u postgres pg_dump agiki_development > ../agiki_development.sql

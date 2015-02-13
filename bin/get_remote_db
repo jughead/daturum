@@ -1,0 +1,18 @@
+#!/bin/bash
+filename=$3$(date +%y%m%d).sql
+ssh $1 "pg_dump $2 > $filename"
+scp $1:$filename ../$filename
+OIFS=$IFS
+IFS="@"
+read -ra user <<< "$1"
+IFS=$OIFS
+user=${user[0]}
+echo $user
+pattern=s/${user}_production/agiki_development/g
+sed -i -e $pattern ../$filename
+if [ "$user" != "agiki" ]; then
+  pattern=s/$user/agiki_development/g
+  sed -i -e $pattern ../$filename
+fi
+#rm -rf public/files
+#scp -r $1:$4/public/files public
